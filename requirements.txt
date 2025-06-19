@@ -1,0 +1,3 @@
+MNN
+numpy
+opencv-python
