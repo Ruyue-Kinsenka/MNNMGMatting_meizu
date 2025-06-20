@@ -38,17 +38,22 @@ output_tensor.copyToHostTensor(output_buffer)
 # 获取numpy数组
 output_data = output_buffer.getNumpyData()
 
-# 处理输出
-mask = output_data[0, 0]
-mask = (mask > 0.5).astype(np.uint8) * 255
-resized_mask = cv2.resize(mask, (orig_w, orig_h), interpolation=cv2.INTER_NEAREST)
+# 抗锯齿处理 
+mask_float = output_data[0, 0]   # 1024x1024, 值在0~1之间
+
+resized_mask_float = cv2.resize(mask_float, (orig_w, orig_h), interpolation=cv2.INTER_LINEAR)
+blurred_mask = cv2.GaussianBlur(resized_mask_float, (5, 5), 0)
+binary_mask = np.zeros_like(blurred_mask, dtype=np.uint8)
+binary_mask[blurred_mask > 0.45] = 255 
+kernel = np.ones((3, 3), np.uint8)
+smoothed_mask = cv2.morphologyEx(binary_mask, cv2.MORPH_OPEN, kernel)
 
 # 创建带透明通道的结果
-cv2.imwrite("mask.png", resized_mask)
+cv2.imwrite("mask.png", smoothed_mask)
 rgba = cv2.cvtColor(image, cv2.COLOR_BGR2BGRA)
-rgba[:, :, 3] = resized_mask
+rgba[:, :, 3] = smoothed_mask
 cv2.imwrite("output.png", rgba)
 foreground = np.zeros((orig_h, orig_w, 4), dtype=np.uint8)
 foreground[:, :, :3] = image
-foreground[:, :, 3] = resized_mask
+foreground[:, :, 3] = smoothed_mask
 cv2.imwrite("foreground.png", foreground)
